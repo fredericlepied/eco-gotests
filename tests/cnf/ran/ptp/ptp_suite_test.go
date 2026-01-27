@@ -7,11 +7,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranreport"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
@@ -57,11 +57,15 @@ var _ = JustAfterEach(func() {
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
-	reportxml.Create(report, RANConfig.GetReportPath(), RANConfig.TCPrefix)
-
-	By("generating network interface information report")
+	// Generate network interface information before creating the report
+	suiteProperties := make(map[string]string)
 	nicinfoReport, err := nicinfo.GenerateReport(RANConfig.Spoke1APIClient)
-	Expect(err).ToNot(HaveOccurred(), "Failed to generate network interface information report")
+	if err != nil {
+		GinkgoLogr.Error(err, "Failed to generate network interface information report")
+	} else {
+		suiteProperties["nicinfo"] = nicinfoReport
+	}
 
-	AddReportEntry("nicinfo", nicinfoReport)
+	// Create the XML report with nicinfo included as a suite-level property
+	ranreport.CreateWithSuiteProperties(report, RANConfig.GetReportPath(), RANConfig.TCPrefix, suiteProperties)
 })
